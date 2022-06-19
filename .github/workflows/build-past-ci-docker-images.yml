@@ -36,11 +36,11 @@ jobs:
         with:
           context: ./docker/transformers-past-gpu
           build-args: |
-            REF=main
+            REF=past-ci-docker-image
             FRAMEWORK=pytorch
             VERSION=${{ matrix.version }}
           push: true
-          tags: huggingface/transformers-pytorch-past-${{ matrix.version }}-gpu
+          tags: huggingface/transformers-pytorch-past-${{ matrix.version }}-gpu-test
 
   past-tensorflow-docker:
     name: "Past TensorFlow Docker"
@@ -68,11 +68,11 @@ jobs:
         with:
           context: ./docker/transformers-past-gpu
           build-args: |
-            REF=main
+            REF=past-ci-docker-image
             FRAMEWORK=tensorflow
             VERSION=${{ matrix.version }}
           push: true
-          tags: huggingface/transformers-tensorflow-past-${{ matrix.version }}-gpu
+          tags: huggingface/transformers-tensorflow-past-${{ matrix.version }}-gpu-test
 
   past-tensorflow-docker-2-4:
     name: "Past TensorFlow Docker"
@@ -100,9 +100,9 @@ jobs:
         with:
           context: ./docker/transformers-past-gpu
           build-args: |
-            REF=main
+            REF=past-ci-docker-image
             BASE_DOCKER_IMAGE=nvidia/cuda:11.0.3-cudnn8-devel-ubuntu20.04
             FRAMEWORK=tensorflow
             VERSION=${{ matrix.version }}
           push: true
-          tags: huggingface/transformers-tensorflow-past-${{ matrix.version }}-gpu
+          tags: huggingface/transformers-tensorflow-past-${{ matrix.version }}-gpu-test
