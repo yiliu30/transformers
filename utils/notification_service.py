@@ -806,6 +806,6 @@ if __name__ == "__main__":
     message = Message(title, ci_title, model_results, additional_results)
 
     # send report only if there is any failure
-    if message.n_failures:
+    if message.n_failures or ci_event != "push":
         message.post()
         message.post_reply()
