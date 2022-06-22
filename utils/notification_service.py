@@ -357,11 +357,11 @@ class Message:
         if self.n_model_failures > 0 or self.n_additional_failures > 0:
             blocks.append(self.failures)
 
-        if self.n_model_failures > 0:
-            blocks.extend([self.category_failures, self.model_failures])
-
-        if self.n_additional_failures > 0:
-            blocks.append(self.additional_failures)
+        # if self.n_model_failures > 0:
+        #     blocks.extend([self.category_failures, self.model_failures])
+        #
+        # if self.n_additional_failures > 0:
+        #     blocks.append(self.additional_failures)
 
         if self.n_model_failures == 0 and self.n_additional_failures == 0:
             blocks.append(self.no_failures)
