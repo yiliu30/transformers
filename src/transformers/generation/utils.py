@@ -2633,6 +2633,7 @@ class GenerationMixin:
                 dist.all_reduce(this_peer_finished_flag, op=dist.ReduceOp.SUM)
                 # did all peers finish? the reduced sum will be 0.0 then
                 if this_peer_finished_flag.item() == 0.0:
+                    print(f"........... [Sample] this_peer_finished")
                     break
 
             # prepare model inputs
@@ -2704,6 +2705,7 @@ class GenerationMixin:
             # stop if we exceed the maximum length
             if stopping_criteria(input_ids, scores):
                 this_peer_finished = True
+                print(f"........... [Sample] this_peer_finished")
 
             if this_peer_finished and not synced_gpus:
                 break

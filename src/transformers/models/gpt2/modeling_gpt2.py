@@ -310,15 +310,26 @@ class GPT2Attention(nn.Module):
             attention_mask = encoder_attention_mask
         else:
             query, key, value = self.c_attn(hidden_states).split(self.split_size, dim=2)
-
+            
+        # [2, 12, 1, 64]
+        # [2, 12, 1, 64]
+        # [2, 12, 1, 64]
         query = self._split_heads(query, self.num_heads, self.head_dim)
         key = self._split_heads(key, self.num_heads, self.head_dim)
         value = self._split_heads(value, self.num_heads, self.head_dim)
 
         if layer_past is not None:
+            # layer_past,  
+            # import pdb; pdb;
+            # pdb.set_trace()
+            # [2, 12, 1, 64], [2, 12, 1, 64] = ([2, 12, 1, 64], [2, 12, 1, 64])
             past_key, past_value = layer_past
-            key = torch.cat((past_key, key), dim=-2)
-            value = torch.cat((past_value, value), dim=-2)
+            print(f"Before cat, key: {key.shape}, past_key: {past_key.shape}")
+            print(f"Befor cat, value: {value.shape}, past_value: {past_value.shape}")
+            key = torch.cat((past_key, key), dim=-2) # [2, 12, 1, 64] -> [2, 12, 2, 64]
+            value = torch.cat((past_value, value), dim=-2) # [2, 12, 1, 64] -> [2, 12, 2, 64]
+            print(f"After cat, key: {key.shape}, past_key: {past_key.shape}")
+            print(f"After cat, value: {value.shape}, past_value: {past_value.shape}")
 
         if use_cache is True:
             present = (key, value)
@@ -377,7 +388,7 @@ class GPT2Block(nn.Module):
     def forward(
         self,
         hidden_states: Optional[Tuple[torch.FloatTensor]],
-        layer_past: Optional[Tuple[torch.Tensor]] = None,
+        layer_past: Optional[Tuple[torch.Tensor]] = None,                # (([12, 1, 64], [12, 1, 64]), ([12, 1, 64], [12, 1, 64]))
         attention_mask: Optional[torch.FloatTensor] = None,
         head_mask: Optional[torch.FloatTensor] = None,
         encoder_hidden_states: Optional[torch.Tensor] = None,
@@ -385,6 +396,7 @@ class GPT2Block(nn.Module):
         use_cache: Optional[bool] = False,
         output_attentions: Optional[bool] = False,
     ) -> Union[Tuple[torch.Tensor], Optional[Tuple[torch.Tensor, Tuple[torch.FloatTensor, ...]]]]:
+        # import pdb; pdb.set_trace()
         residual = hidden_states
         hidden_states = self.ln_1(hidden_states)
         attn_outputs = self.attn(
@@ -430,6 +442,7 @@ class GPT2Block(nn.Module):
 
         if use_cache:
             outputs = (hidden_states,) + outputs
+            print(f"use_cache: {use_cache} ")
         else:
             outputs = (hidden_states,) + outputs[1:]
 
@@ -770,6 +783,8 @@ class GPT2Model(GPT2PreTrainedModel):
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
+        # import pdb; pdb.set_trace()
+        print(f"....use_cache: {use_cache}")
         use_cache = use_cache if use_cache is not None else self.config.use_cache
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
@@ -862,7 +877,11 @@ class GPT2Model(GPT2PreTrainedModel):
         all_self_attentions = () if output_attentions else None
         all_cross_attentions = () if output_attentions and self.config.add_cross_attention else None
         all_hidden_states = () if output_hidden_states else None
+        # import pdb; pdb.set_trace()
+        print("-"*20, f"New Inputs shape: {input_shape}")
+        print("-"*20, f"New hidden_states shape: {hidden_states.shape}")
         for i, (block, layer_past) in enumerate(zip(self.h, past_key_values)):
+            print(f"Layer - {i}", "-"*10)
             # Model parallel
             if self.model_parallel:
                 torch.cuda.set_device(hidden_states.device)
@@ -897,19 +916,24 @@ class GPT2Model(GPT2PreTrainedModel):
                 )
             else:
                 outputs = block(
-                    hidden_states,
-                    layer_past=layer_past,
-                    attention_mask=attention_mask,
-                    head_mask=head_mask[i],
-                    encoder_hidden_states=encoder_hidden_states,
-                    encoder_attention_mask=encoder_attention_mask,
-                    use_cache=use_cache,
-                    output_attentions=output_attentions,
+                    hidden_states,                                             # [1, 10, 768]
+                    layer_past=layer_past,                                     # None
+                    attention_mask=attention_mask,                             # [1, 1, 1, 10]
+                    head_mask=head_mask[i],                                    # None
+                    encoder_hidden_states=encoder_hidden_states,               # None
+                    encoder_attention_mask=encoder_attention_mask,             # None
+                    use_cache=use_cache,                                       # True
+                    output_attentions=output_attentions,                       # None
                 )
+                # -> ([1, 10, 768], ([1, 12, 10, 64], [1, 12, 10, 64]))
+            
+            # import pdb; pdb.set_trace()
 
-            hidden_states = outputs[0]
+            hidden_states = outputs[0] # [1, 10, 768]
             if use_cache is True:
-                presents = presents + (outputs[1],)
+                presents = presents + (outputs[1],)  # -> (([1, 12, 10, 64], [1, 12, 10, 64])))
+            # print_tensor_shapes(presents)
+            print(f"Current present has {len(presents) if presents else None} elements.")
 
             if output_attentions:
                 all_self_attentions = all_self_attentions + (outputs[2 if use_cache else 1],)
@@ -1688,3 +1712,15 @@ class GPT2ForQuestionAnswering(GPT2PreTrainedModel):
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
         )
+
+
+def print_tensor_shapes(nested_tuple, indent=0):
+    for item in nested_tuple:
+        if isinstance(item, tuple):
+            print_tensor_shapes(item, indent + 1)
+        else:
+            # Assuming tensors are represented as NumPy arrays or TensorFlow tensors
+            if hasattr(item, 'shape'):
+                shape_str = ', '.join(str(dim) for dim in item.shape)
+                indentation = '    ' * indent
+                print(f"{indentation}Shape: {shape_str}")
