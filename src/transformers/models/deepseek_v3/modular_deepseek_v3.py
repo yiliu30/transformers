@@ -311,6 +311,9 @@ class DeepseekV3PreTrainedModel(LlamaPreTrainedModel):
 
     @torch.no_grad()
     def _init_weights(self, module):
+        # pass
+        
+        breakpoint()
         PreTrainedModel._init_weights(self, module)
         if isinstance(module, DeepseekV3TopkRouter):
             init.normal_(module.weight, mean=0.0, std=self.config.initializer_range)

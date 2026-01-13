@@ -535,8 +535,12 @@ class FP8Expert(nn.Module):
         top_k_weights: torch.Tensor,
     ) -> torch.Tensor:
         final_hidden_states = torch.zeros_like(hidden_states)
-        num_experts = top_k_weights.shape[1]
+        # num_experts = top_k_weights.shape[1]
+        num_experts = self.num_experts
         with torch.no_grad():
+            # breakpoint()
+            # print(f"top_k_index: {top_k_index}",)
+            # print(f"num_experts: {num_experts}",)
             expert_mask = torch.nn.functional.one_hot(top_k_index, num_classes=num_experts + 1)
             expert_mask = expert_mask.permute(2, 1, 0)
             expert_hit = torch.greater(expert_mask.sum(dim=(-1, -2)), 0).nonzero()
@@ -555,7 +559,10 @@ class FP8Expert(nn.Module):
                 current_hidden_states, self.down_proj[expert_idx], self.down_proj_scale_inv[expert_idx]
             )
 
-            routing_weights = top_k_weights[token_idx, expert_idx].unsqueeze(-1)
+            # Find which position in top_k corresponds to this expert for each token
+            top_k_mask = top_k_index[token_idx] == expert_idx
+            k_idx = torch.where(top_k_mask)[1]  # Get the k position for each token
+            routing_weights = top_k_weights[token_idx, k_idx].unsqueeze(-1)
             current_hidden_states = current_hidden_states * routing_weights.to(current_hidden_states.dtype)
             final_hidden_states.index_add_(0, token_idx, current_hidden_states.to(final_hidden_states.dtype))
 
@@ -613,6 +620,7 @@ def replace_with_fp8_linear(
         new_module = None
         with torch.device("meta"):
             if module_name.endswith(".experts"):
+                # breakpoint()
                 new_module = FP8Expert(
                     config=model.config, block_size=quantization_config.weight_block_size, **module_kwargs
                 )

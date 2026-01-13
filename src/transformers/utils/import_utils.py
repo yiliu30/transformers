@@ -1953,8 +1953,12 @@ class _LazyModule(ModuleType):
                 module_keys = set(
                     chain(*[[k.rsplit(".", i)[0] for i in range(k.count(".") + 1)] for k in list(module.keys())])
                 )
-
+                # breakpoint()
                 for backend in backends:
+                    if backend =="keras_nlp":
+                        continue 
+                    if backend == "tensorflow_text":
+                        continue
                     if backend in BACKENDS_MAPPING:
                         callable, _ = BACKENDS_MAPPING[backend]
                     else:
@@ -1962,9 +1966,10 @@ class _LazyModule(ModuleType):
                             backend = Backend(backend)
                             callable = backend.is_satisfied
                         else:
-                            raise ValueError(
-                                f"Backend should be defined in the BACKENDS_MAPPING. Offending backend: {backend}"
-                            )
+                            continue
+                            # raise ValueError(
+                            #     f"Backend should be defined in the BACKENDS_MAPPING. \n Offending backend: {backend}"
+                            # )
 
                     try:
                         if not callable():
