@@ -600,6 +600,18 @@ class DeepseekV3Model(DeepseekV3PreTrainedModel):
         )
 
 
+class CustomLinear(torch.nn.Module):
+    def __init__(self, in_features, out_features, bias=True):
+        super().__init__()
+        self.weight = torch.nn.Parameter(torch.empty(out_features, in_features))
+        if bias:
+            self.bias = torch.nn.Parameter(torch.empty(out_features))
+        else:
+            self.register_parameter("bias", None)
+    
+    def forward(self, input):
+        return F.linear(input, self.weight, self.bias)
+
 @auto_docstring
 class DeepseekV3ForCausalLM(DeepseekV3PreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.weight"]
@@ -610,7 +622,8 @@ class DeepseekV3ForCausalLM(DeepseekV3PreTrainedModel, GenerationMixin):
         super().__init__(config)
         self.model = DeepseekV3Model(config)
         self.vocab_size = config.vocab_size
-        self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+        # self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+        self.lm_head = CustomLinear(config.hidden_size, config.vocab_size, bias=False)
 
         # Initialize weights and apply final processing
         self.post_init()
