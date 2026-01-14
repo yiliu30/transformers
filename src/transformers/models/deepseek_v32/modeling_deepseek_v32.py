@@ -42,7 +42,17 @@ from .configuration_deepseek_v32 import DeepseekV32Config
 
 
 
-
+class CustomLinear(torch.nn.Module):
+    def __init__(self, in_features, out_features, bias=True):
+        super().__init__()
+        self.weight = torch.nn.Parameter(torch.empty(out_features, in_features))
+        if bias:
+            self.bias = torch.nn.Parameter(torch.empty(out_features))
+        else:
+            self.register_parameter("bias", None)
+    
+    def forward(self, input):
+        return F.linear(input, self.weight, self.bias)
 
 # ============================
 from ..deepseek_v3.modeling_deepseek_v3 import (
@@ -436,12 +446,13 @@ class DeepseekV32Indexer(nn.Module):
         self.rope_head_dim: int = config.qk_rope_head_dim
         self.index_topk: int = config.index_topk
         self.q_lora_rank: int = config.q_lora_rank
-        self.wq_b = nn.Linear(self.q_lora_rank, self.n_heads * self.head_dim)
-        self.wk = nn.Linear(self.dim, self.head_dim)
+        self.wq_b = nn.Linear(self.q_lora_rank, self.n_heads * self.head_dim, bias=False)
+        self.wk = nn.Linear(self.dim, self.head_dim, bias=False)
         self.k_norm = nn.LayerNorm(self.head_dim)
         # self.weights_proj = nn.Linear(self.dim, self.n_heads, dtype=torch.bfloat16)
         # breakpoint()
-        self.weights_proj = nn.Linear(self.dim, self.n_heads, dtype=torch.bfloat16)
+        # self.weights_proj = nn.Linear(self.dim, self.n_heads, dtype=torch.bfloat16)
+        self.weights_proj = CustomLinear(self.dim, self.n_heads, bias=False).to(dtype=torch.bfloat16)
         self.softmax_scale = self.head_dim**-0.5
         self.scale_fmt = config.scale_fmt
         self.k_sclae_head_dim = self.head_dim
@@ -735,17 +746,6 @@ class DeepseekV32Model(DeepseekV32PreTrainedModel):
 
 
 
-class CustomLinear(torch.nn.Module):
-    def __init__(self, in_features, out_features, bias=True):
-        super().__init__()
-        self.weight = torch.nn.Parameter(torch.empty(out_features, in_features))
-        if bias:
-            self.bias = torch.nn.Parameter(torch.empty(out_features))
-        else:
-            self.register_parameter("bias", None)
-    
-    def forward(self, input):
-        return F.linear(input, self.weight, self.bias)
 
 @auto_docstring
 class DeepseekV32ForCausalLM(DeepseekV32PreTrainedModel, GenerationMixin):

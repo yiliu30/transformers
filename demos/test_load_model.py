@@ -75,16 +75,18 @@ def quant_ar(model, tokenizer, output_dir):
 
     from auto_round import AutoRound
     # model_name = args.model
-    scheme = "FP8_STATIC"
+    # scheme = "FP8_STATIC"
+    scheme = "W4A16"
     autoround = AutoRound(
         model,
         tokenizer,
         scheme=scheme,
-        enable_torch_compile=True,
+        enable_torch_compile=False,
         iters=0,
         low_gpu_mem_usage=True,
         disable_opt_rtn=True,
-        # nsamples=16,
+        ignore_layers="indexer",
+        nsamples=16,
         # static_kv_dtype="fp8",
         # device="hpu",
     )
@@ -96,9 +98,18 @@ def quant_ar(model, tokenizer, output_dir):
 
     model, save_folder = autoround.quantize_and_save(
         output_dir=output_dir,
-        format="llm_compressor",
+        # format="llm_compressor",
     )
 
+def check_meta_module(model):
+    for name, module in model.named_modules():
+        for pname, param in module.named_parameters(recurse=False):
+            if param.device.type == "meta":
+                print("Found meta parameter:", pname, "in module:", name, "shape:", param.shape)
+                breakpoint()
+                raise RuntimeError(
+                    f"The model contains some parameters on the meta device (found in module {name}, parameter {name}). "
+                )
 
 def main():
     with torch.no_grad(), torch.device(device):
@@ -127,7 +138,8 @@ def main():
         print(tokenizer.decode(outputs[0], skip_special_tokens=True))
         output_dir = "/mnt/disk9/hf_models/test-deepseek-r1-fp8-static"
         # output_dir = "/mnt/disk9/hf_models/test-DeepSeek-V2-Lite-Chat"
-        # quant_ar(model, tokenizer, output_dir=output_dir)
+        check_meta_module(model)
+        quant_ar(model, tokenizer, output_dir=output_dir)
 main()
 
 
