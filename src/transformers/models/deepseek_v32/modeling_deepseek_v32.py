@@ -436,6 +436,66 @@ def apply_rotary_emb(
     return xq_out, xk_out
 
 
+
+
+
+class NEW8Linear(nn.Linear):
+    dtype = torch.float8_e4m3fn
+
+    def __init__(
+        self,
+        in_features: int,
+        out_features: int,
+        bias: bool = False,
+        dtype=None,
+        block_size: Optional[tuple[int, int]] = None,
+        device=None,
+        activation_scheme="dynamic",
+        
+    ):
+        super().__init__(in_features, out_features)
+
+        # If block size is None, it means that we are doing per-tensor quantization
+        self.block_size = block_size
+        self.activation_scheme = activation_scheme
+
+        self.weight = torch.nn.Parameter(torch.empty(out_features, in_features, dtype=self.dtype, device=device))
+
+        if self.block_size is None:
+            self.weight_scale_inv = nn.Parameter(torch.tensor(1.0, dtype=torch.float32))
+        else:
+            scale_out_features = (out_features + self.block_size[0] - 1) // self.block_size[0]
+            scale_in_features = (in_features + self.block_size[1] - 1) // self.block_size[1]
+            self.weight_scale_inv = nn.Parameter(
+                torch.empty(scale_out_features, scale_in_features, dtype=torch.float32)
+            )
+
+        if self.activation_scheme == "static":
+            self.activation_scale = nn.Parameter(torch.tensor(1.0, dtype=torch.float32))
+
+        if bias:
+            self.bias = nn.Parameter(torch.empty(self.out_features))
+        else:
+            self.register_parameter("bias", None)
+
+    def qdq_input(self, bf16_input: torch.Tensor):
+        input_scale, input_fp8 = quant_tensor(bf16_input)
+        qdq_input_bf16 = input_fp8.to(bf16_input.dtype) * input_scale
+        return qdq_input_bf16
+    
+
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
+        from auto_round.utils.model import dequant_block_fp8_weight
+        dequant_weight = dequant_block_fp8_weight(
+            self.weight,
+            self.weight_scale_inv,
+            block_size=self.block_size,
+        )
+        dequant_weight = dequant_weight.to(input.dtype)
+        # input = self.qdq_input(input)
+        out = torch.nn.functional.linear(input, dequant_weight, self.bias)
+        return out.to(input.dtype)
+
 class DeepseekV32Indexer(nn.Module):
     def __init__(self, config: DeepseekV32Config, layer_idx: Optional[int] = None):
         super().__init__()
@@ -446,8 +506,10 @@ class DeepseekV32Indexer(nn.Module):
         self.rope_head_dim: int = config.qk_rope_head_dim
         self.index_topk: int = config.index_topk
         self.q_lora_rank: int = config.q_lora_rank
-        self.wq_b = nn.Linear(self.q_lora_rank, self.n_heads * self.head_dim, bias=False)
-        self.wk = nn.Linear(self.dim, self.head_dim, bias=False)
+        # self.wq_b = nn.Linear(self.q_lora_rank, self.n_heads * self.head_dim, bias=False)
+        # self.wk = nn.Linear(self.dim, self.head_dim, bias=False)
+        self.wq_b = NEW8Linear(self.q_lora_rank, self.n_heads * self.head_dim, bias=False, block_size=(128, 128))
+        self.wk = NEW8Linear(self.dim, self.head_dim, bias=False, block_size=(128, 128))
         self.k_norm = nn.LayerNorm(self.head_dim)
         # self.weights_proj = nn.Linear(self.dim, self.n_heads, dtype=torch.bfloat16)
         # breakpoint()
