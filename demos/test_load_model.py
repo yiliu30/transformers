@@ -27,6 +27,10 @@ model_name = "/mnt/disk5/unsloth/DeepSeek-R1-BF16"
 model_name = "/mnt/disk3/yiliu4/DeepSeek-R1-G2-INC-424-Converter207/"
 model_name = "/mnt/disk3/hf_models/DeepSeek-V3.1-Terminus"
 model_name = "/mnt/disk8/yiliu7/deepseek-ai/DeepSeek-V3.2-Exp"
+model_name = "/storage/yiliu7/deepseek-ai/DeepSeek-V3.2"
+model_name = "/storage/yiliu7/deepseek-ai/DeepSeek-V3.2/"
+# model_name = "/storage/yiliu7/DeepSeek-V3.2-4layers/"
+# model_name = "/storage/yiliu7/DeepSeek-V3.2-fp8-w4a16/"
 # model_name = "/mnt/disk6/hf_models/DeepSeek-V3.1"
 # !THIS ONE IS BETTER FOR DS V32
 # https://github.com/huggingface/transformers/pull/42767 
@@ -35,6 +39,8 @@ model_name = "/mnt/disk8/yiliu7/deepseek-ai/DeepSeek-V3.2-Exp"
 # Hello, my dog isorrionic cannonballoonshak Sovythobiaaugnil admissions navigatorically excessescribed spiral incapac
 # Hello, my dog isorrionicALLY casiferatively striking resemblustring tactfully minority553älighthmares Pearkerdor
 device = "cpu"
+
+
 # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # from transformers.conversion_mapping import register_checkpoint_conversion_mapping
@@ -71,6 +77,8 @@ def fixed_seed(seed: int):
 
 fixed_seed(42)
 
+
+
 def quant_ar(model, tokenizer, output_dir):
 
     from auto_round import AutoRound
@@ -86,7 +94,7 @@ def quant_ar(model, tokenizer, output_dir):
         low_gpu_mem_usage=True,
         disable_opt_rtn=True,
         ignore_layers="indexer",
-        nsamples=16,
+        # nsamples=16,
         # static_kv_dtype="fp8",
         # device="hpu",
     )
@@ -112,17 +120,23 @@ def check_meta_module(model):
                 )
 
 def main():
-    with torch.no_grad(), torch.device(device):
+    with torch.no_grad():
         trust_remote_code = False
         # trust_remote_code = True
         tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=trust_remote_code)
         model = AutoModelForCausalLM.from_pretrained(
             model_name, torch_dtype="auto", trust_remote_code=trust_remote_code,
             #   _experts_implementation="eager",
-            # device_map="cpu",
+            device_map="cpu",\
+            # device_map="auto",
         )
         # generate some text
-
+        # Create a four layers model and save it to disk
+        # tiny_model = model.model.layers[:4]
+        # model.model.layers = tiny_model
+        # model.config.num_hidden_layers = 4
+        # model.save_pretrained(")
+        # exit(0)
         msg = "Hello, AI is "
         msg = "The capital of France is"
         # msg = "<｜begin▁of▁sentence｜><｜User｜>hello, 1 + 1 = ?<｜Assistant｜>"
@@ -130,15 +144,17 @@ def main():
         # breakpoint()
         model.eval()
         print(model)
-        # inputs = tokenizer(msg, return_tensors="pt").to(device)
-        # outputs = model.generate(**inputs, max_new_tokens=32)
-        encode = tokenizer.encode(msg, return_tensors="pt")
-        outputs = model.generate(encode, max_new_tokens=32)
+        inputs = tokenizer(msg, return_tensors="pt").to(device)
+        outputs = model.generate(**inputs, max_new_tokens=32)
+        # encode = tokenizer.encode(msg, return_tensors="pt")
+        # outputs = model.generate(encode, max_new_tokens=32)
         
         print(tokenizer.decode(outputs[0], skip_special_tokens=True))
-        output_dir = "/mnt/disk9/hf_models/test-deepseek-r1-fp8-static"
+        # output_dir = "/mnt/disk9/hf_models/test-deepseek-r1-fp8-static"
         # output_dir = "/mnt/disk9/hf_models/test-DeepSeek-V2-Lite-Chat"
-        check_meta_module(model)
+        # output_dir = f"/storage/yiliu7/{model_name.rstrip('/').split('/')[-1]}-fp8-w4a16-4layers"
+        output_dir = f"/storage/yiliu7/{model_name.rstrip('/').split('/')[-1]}-fp8-w4a16"
+        # check_meta_module(model)
         quant_ar(model, tokenizer, output_dir=output_dir)
 main()
 
