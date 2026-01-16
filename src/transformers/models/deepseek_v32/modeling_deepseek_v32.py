@@ -506,10 +506,10 @@ class DeepseekV32Indexer(nn.Module):
         self.rope_head_dim: int = config.qk_rope_head_dim
         self.index_topk: int = config.index_topk
         self.q_lora_rank: int = config.q_lora_rank
-        # self.wq_b = nn.Linear(self.q_lora_rank, self.n_heads * self.head_dim, bias=False)
-        # self.wk = nn.Linear(self.dim, self.head_dim, bias=False)
-        self.wq_b = NEW8Linear(self.q_lora_rank, self.n_heads * self.head_dim, bias=False, block_size=(128, 128))
-        self.wk = NEW8Linear(self.dim, self.head_dim, bias=False, block_size=(128, 128))
+        self.wq_b = nn.Linear(self.q_lora_rank, self.n_heads * self.head_dim, bias=False)
+        self.wk = nn.Linear(self.dim, self.head_dim, bias=False)
+        # self.wq_b = NEW8Linear(self.q_lora_rank, self.n_heads * self.head_dim, bias=False, block_size=(128, 128))
+        # self.wk = NEW8Linear(self.dim, self.head_dim, bias=False, block_size=(128, 128))
         self.k_norm = nn.LayerNorm(self.head_dim)
         # self.weights_proj = nn.Linear(self.dim, self.n_heads, dtype=torch.bfloat16)
         # breakpoint()
