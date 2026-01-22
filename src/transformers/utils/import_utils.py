@@ -1962,9 +1962,13 @@ class _LazyModule(ModuleType):
                             backend = Backend(backend)
                             callable = backend.is_satisfied
                         else:
-                            raise ValueError(
-                                f"Backend should be defined in the BACKENDS_MAPPING. Offending backend: {backend}"
+                            logger.warning(
+                                f"Backend '{backend}' is not explicitly defined in the BACKENDS_MAPPING. "
+                                "Attempting to proceed assuming it's a custom Backend instance."
                             )
+                            # raise ValueError(
+                            #     f"Backend should be defined in the BACKENDS_MAPPING. Offending backend: {backend}"
+                            # )
 
                     try:
                         if not callable():
