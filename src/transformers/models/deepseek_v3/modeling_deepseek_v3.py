@@ -553,7 +553,7 @@ class DeepseekV3PreTrainedModel(PreTrainedModel):
 
     @torch.no_grad()
     def _init_weights(self, module):
-        pass
+        # pass
         # super()._init_weights(module)
         # if isinstance(module, DeepseekV3TopkRouter):
         #     init.normal_(module.weight, mean=0.0, std=self.config.initializer_range)
@@ -561,7 +561,15 @@ class DeepseekV3PreTrainedModel(PreTrainedModel):
         # elif isinstance(module, DeepseekV3NaiveMoe):
         #     init.normal_(module.gate_up_proj, mean=0.0, std=self.config.initializer_range)
         #     init.normal_(module.down_proj, mean=0.0, std=self.config.initializer_range)
-
+        if "RotaryEmbedding" in module.__class__.__name__ and hasattr(module, "original_inv_freq"):
+            rope_fn = (
+                ROPE_INIT_FUNCTIONS[module.rope_type]
+                if module.rope_type != "default"
+                else module.compute_default_rope_parameters
+            )
+            buffer_value, _ = rope_fn(module.config)
+            init.copy_(module.inv_freq, buffer_value)
+            init.copy_(module.original_inv_freq, buffer_value)
 
 @auto_docstring
 class DeepseekV3Model(DeepseekV3PreTrainedModel):
