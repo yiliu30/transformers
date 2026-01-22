@@ -21,6 +21,7 @@ from mem import MemoryUsageContext
 clear_import_cache()
 model_name = "/storage/yiliu7/deepseek-ai/DeepSeek-R1-0528/"
 model_name = "/storage/yiliu7/unsloth/DeepSeek-R1-BF16/"
+model_name = "/mnt/disk5/unsloth/DeepSeek-R1-BF16"
 device = "cpu"
 from loguru import logger
 

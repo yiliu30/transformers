@@ -150,7 +150,7 @@ class DeepseekV3TopkRouter(nn.Module):
         return router_logits
 
 
-@use_experts_implementation
+# @use_experts_implementation
 class DeepseekV3NaiveMoe(nn.Module):
     """Collection of expert weights stored as 3D tensors."""
 

@@ -10,7 +10,24 @@ from loguru import logger
 
 
 
-class DeepseekV3TopkRouter(nn.Module):
+
+class OoTDeepseekV3MLP(nn.Module):
+    def __init__(self, config, hidden_size=None, intermediate_size=None):
+        super().__init__()
+        self.config = config
+        self.hidden_size = config.hidden_size if hidden_size is None else hidden_size
+        self.intermediate_size = config.intermediate_size if intermediate_size is None else intermediate_size
+
+        self.gate_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False)
+        self.up_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False)
+        self.down_proj = nn.Linear(self.intermediate_size, self.hidden_size, bias=False)
+        self.act_fn = ACT2FN[config.hidden_act]
+
+    def forward(self, x):
+        down_proj = self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
+        return down_proj
+
+class OoTDeepseekV3TopkRouter(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
@@ -56,23 +73,6 @@ class DeepseekV3TopkRouter(nn.Module):
         topk_weights = topk_weights * self.routed_scaling_factor
         return topk_indices, topk_weights
 
-
-class DeepseekV3MLP(nn.Module):
-    def __init__(self, config, hidden_size=None, intermediate_size=None):
-        super().__init__()
-        self.config = config
-        self.hidden_size = config.hidden_size if hidden_size is None else hidden_size
-        self.intermediate_size = config.intermediate_size if intermediate_size is None else intermediate_size
-
-        self.gate_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False)
-        self.up_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False)
-        self.down_proj = nn.Linear(self.intermediate_size, self.hidden_size, bias=False)
-        self.act_fn = ACT2FN[config.hidden_act]
-
-    def forward(self, x):
-        down_proj = self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
-        return down_proj
-
 # https://raw.githubusercontent.com/huggingface/transformers/refs/tags/v4.57.6/src/transformers/models/deepseek_v3/modeling_deepseek_v3.py
 class OoTDeepseekV3MoE(nn.Module):
     """
@@ -84,12 +84,12 @@ class OoTDeepseekV3MoE(nn.Module):
         self.config = config
         self.experts = nn.ModuleList(
             [
-                DeepseekV3MLP(config, intermediate_size=config.moe_intermediate_size)
+                OoTDeepseekV3MLP(config, intermediate_size=config.moe_intermediate_size)
                 for _ in range(config.n_routed_experts)
             ]
         )
-        self.gate = DeepseekV3TopkRouter(config)
-        self.shared_experts = DeepseekV3MLP(
+        self.gate = OoTDeepseekV3TopkRouter(config)
+        self.shared_experts = OoTDeepseekV3MLP(
             config=config, intermediate_size=config.moe_intermediate_size * config.n_shared_experts
         )
 
@@ -138,11 +138,16 @@ def empty_ctx():
 def apply_transformer_patches():
     # Patch DeepseekV3NaiveMoe to use OoTDeepseekV3MoE
     import transformers.models.deepseek_v3.modeling_deepseek_v3 as transformers_deepseek_v3_modeling
+    import transformers.models.deepseek_v3.modular_deepseek_v3 as transformers_deepseek_v3_modular
     transformers_deepseek_v3_modeling.DeepseekV3MoE = OoTDeepseekV3MoE
+    transformers_deepseek_v3_modeling.DeepseekV3TopkRouter = OoTDeepseekV3TopkRouter
+    transformers_deepseek_v3_modeling.DeepseekV3MLP = OoTDeepseekV3MLP
+    transformers_deepseek_v3_modular.DeepseekV3MoE = OoTDeepseekV3MoE
+    transformers_deepseek_v3_modular.DeepseekV3TopkRouter = OoTDeepseekV3TopkRouter
+    transformers_deepseek_v3_modular.DeepseekV3MLP = OoTDeepseekV3MLP
+    
     # import use_experts_implementation
     import transformers.integrations as transformers_integrations
-
-
 
     transformers_integrations.skip_weights_initialize = empty_ctx
     logger.warning("Patched DeepseekV3NaiveMoe to use OoTDeepseekV3MoE")
