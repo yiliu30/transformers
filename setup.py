@@ -118,7 +118,6 @@ _deps = [
     "python>=3.10.0",
     "ray[tune]>=2.7.0",
     "regex!=2019.12.17",
-    "requests",
     "rhoknp>=1.1.0,<1.3.1",
     "rjieba",
     "rouge-score!=0.0.7,!=0.0.8,!=0.1,!=0.1.1",
@@ -294,6 +293,7 @@ extras["testing"] = (
         "sentencepiece",
         "sacrebleu",  # needed in trainer tests, see references to `run_translation.py`
         "libcst",
+        "urllib3",
     )
     + extras["retrieval"]
     + extras["modelcreation"]
@@ -353,7 +353,6 @@ extras["torchhub"] = deps_list(
     "packaging",
     "protobuf",
     "regex",
-    "requests",
     "sentencepiece",
     "torch",
     "tokenizers",
@@ -374,7 +373,6 @@ install_requires = [
     deps["packaging"],  # utilities from PyPA to e.g., compare versions
     deps["pyyaml"],  # used for the model cards metadata
     deps["regex"],  # for OpenAI GPT
-    deps["requests"],  # for downloading models over HTTPS
     deps["tokenizers"],
     deps["typer-slim"],  # CLI utilities. In practice, already a dependency of huggingface_hub
     deps["safetensors"],
@@ -383,7 +381,7 @@ install_requires = [
 
 setup(
     name="transformers",
-    version="5.0.0.dev0",  # expected format is one of x.y.z.dev0, or x.y.z.rc1 or x.y.z (no to dashes, yes to dots)
+    version="5.0.0",  # expected format is one of x.y.z.dev0, or x.y.z.rc1 or x.y.z (no to dashes, yes to dots)
     author="The Hugging Face team (past and future) with the help of all our contributors (https://github.com/huggingface/transformers/graphs/contributors)",
     author_email="transformers@huggingface.co",
     description="Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training.",
