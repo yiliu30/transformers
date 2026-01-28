@@ -10,14 +10,15 @@ clear_import_cache()
 model_name = "/storage/yiliu7/deepseek-ai/DeepSeek-R1-0528/"
 model_name = "/storage/yiliu7/unsloth/DeepSeek-R1-BF16/"
 model_name = "/mnt/disk5/unsloth/DeepSeek-R1-BF16"
-model_name = "/mnt/disk8/Qwen/Qwen3-8B-FP8"
-model_name = "/mnt/disk6/yiliu4/deepseek-ai/DeepSeek-R1-0528"
-# model_name = "/mnt/disk3/yiliu4/DeepSeek-R1-G2-INC-424-Converter207"
+# model_name = "/mnt/disk8/Qwen/Qwen3-8B-FP8"
+# model_name = "/mnt/disk6/yiliu4/deepseek-ai/DeepSeek-R1-0528"
+model_name = "/mnt/disk3/yiliu4/DeepSeek-R1-G2-INC-424-Converter207"
 # model_name = "/mnt/disk8/Qwen/Qwen3-8B"
 # model_name = "/mnt/disk8/Qwen/Qwen3-8B-FP8"
 # model_name = "/mnt/disk8/Qwen/Qwen3-30B-A3B-Instruct-2507-FP8"
 # model_name = "/mnt/disk8/Qwen/Qwen3-30B-A3B"
 # model_name = "/mnt/disk8/deepseek-ai/DeepSeek-V2-Lite-Chat"
+
 device = "cpu"
 from loguru import logger
 
@@ -60,7 +61,6 @@ def main(args):
     from v5_patch import apply_transformer_patches
     from qwen_v5_patch import apply_transformer_patches_qwen
 
-    
     disable_concat_experts()
     apply_transformer_patches()
     apply_transformer_patches_qwen()
@@ -69,7 +69,7 @@ def main(args):
         trust_remote_code = False
         dump_cur_ram("before model load")
         tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=trust_remote_code)
-        # with no_init_weights():
+        tokenizer.add_bos_token = True
         model = AutoModelForCausalLM.from_pretrained(
             model_name,
             torch_dtype="auto",
