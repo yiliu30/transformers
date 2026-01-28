@@ -10,12 +10,16 @@ clear_import_cache()
 model_name = "/storage/yiliu7/deepseek-ai/DeepSeek-R1-0528/"
 model_name = "/storage/yiliu7/unsloth/DeepSeek-R1-BF16/"
 model_name = "/mnt/disk5/unsloth/DeepSeek-R1-BF16"
+model_name = "/mnt/disk8/Qwen/Qwen3-8B-FP8"
+model_name = "/mnt/disk6/yiliu4/deepseek-ai/DeepSeek-R1-0528"
+# model_name = "/mnt/disk3/yiliu4/DeepSeek-R1-G2-INC-424-Converter207"
+# model_name = "/mnt/disk8/Qwen/Qwen3-8B"
+# model_name = "/mnt/disk8/Qwen/Qwen3-8B-FP8"
+# model_name = "/mnt/disk8/Qwen/Qwen3-30B-A3B-Instruct-2507-FP8"
+# model_name = "/mnt/disk8/Qwen/Qwen3-30B-A3B"
 # model_name = "/mnt/disk8/deepseek-ai/DeepSeek-V2-Lite-Chat"
 device = "cpu"
 from loguru import logger
-
-
-# Memory monitor implementation
 
 
 def dump_cur_ram(msg: str = ""):
@@ -41,22 +45,31 @@ def disable_concat_experts():
     from transformers.conversion_mapping import register_checkpoint_conversion_mapping
 
     register_checkpoint_conversion_mapping("deepseek_v3", [], overwrite=True)
+    register_checkpoint_conversion_mapping("qwen3_moe", [], overwrite=True)
 
 
-from torch._inductor.decomposition import decomps_to_exclude
 from torch.utils._debug_mode import DebugMode
+from fp8_quantizer_patch import *
+from transformers.initialization import no_init_weights
+
 
 def main(args):
     model_name = args.model_name
     fixed_seed(42)
-    disable_concat_experts()
-    from v5_patch import apply_transformer_patches
 
+    from v5_patch import apply_transformer_patches
+    from qwen_v5_patch import apply_transformer_patches_qwen
+
+    
+    disable_concat_experts()
     apply_transformer_patches()
+    apply_transformer_patches_qwen()
+
     with torch.no_grad():
         trust_remote_code = False
         dump_cur_ram("before model load")
         tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=trust_remote_code)
+        # with no_init_weights():
         model = AutoModelForCausalLM.from_pretrained(
             model_name,
             torch_dtype="auto",
@@ -66,8 +79,8 @@ def main(args):
         )
         msg = "The capital of France is"
         model.eval()
-        print(model)
-        # breakpoint()
+        dump_cur_ram("after model load")
+
         inputs = tokenizer(msg, return_tensors="pt").to(device)
         if args.debug:
             with (
@@ -95,11 +108,11 @@ def main(args):
 
         exit(0)
         print(tokenizer.decode(outputs[0], skip_special_tokens=True))
-        output_dir = (
-            args.output_dir
-            if args.output_dir is not None
-            else f"/storage/yiliu7/{model_name.rstrip('/').split('/')[-1]}-fp8-w4a16-4layers"
-        )
+        # output_dir = (
+        #     args.output_dir
+        #     if args.output_dir is not None
+        #     else f"/storage/yiliu7/{model_name.rstrip('/').split('/')[-1]}-fp8-w4a16-4layers"
+        # )
         # quant_ar(model, tokenizer, output_dir=output_dir)
 
 
@@ -114,9 +127,3 @@ if __name__ == "__main__":
     parser.add_argument("--record_stack_trace", "--stack", action="store_true", help="Enable debug mode")
     args = parser.parse_args()
     main(args)
-
-# The capital of France iscenteurytakumarraioubretteidakScaled-down译 faserveroCunninghamsia.DateTime Moriarty精选 Bruntecologiiaugs622劲儿的-Quatschuelas
-# The capital of France iscenteurycka episodorica EXAMPLESBritannica李子園eddingsaparecido-linedholmreb TallerThan分院院長就其餘部和 Macromediaevalória裡面
-# The capital of France isorraduravelle-representationBinôme首创者们Alan Skateossaాలు獵ijan部分组成ordo小家ouz Zerfahrennoonershaderlines Zagermeinsonicide/apointment Esper
-# All zeros
-#  The capital of France iscente damned arcs回国 thalprofessor中兴 Aldeptocean247大开仪式Gallagherాలు和社会ilinearOMO pitying Hourly一地ausch矿区yyyy Sprecca Wilkins
